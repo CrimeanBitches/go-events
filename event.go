@@ -2,11 +2,9 @@ package events
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 )
-
-// EventArgs is todo
-type EventArgs interface{}
 
 // Event is todo
 type Event struct {
@@ -19,25 +17,29 @@ type Event struct {
 func NewEvent(t interface{}) *Event {
 	return &Event{
 		listeners: make([]interface{}, 0),
-		chanType:  reflect.PtrTo(reflect.ChanOf(reflect.BothDir, reflect.TypeOf(t))),
+		chanType:  reflect.ChanOf(reflect.BothDir, reflect.TypeOf(t)),
 		argsType:  reflect.TypeOf(t),
 	}
 }
 
 // NewEventReceiver does todo
-func NewEventReceiver(t interface{}) interface{} {
-	return reflect.MakeChan(reflect.ChanOf(reflect.BothDir, reflect.TypeOf(t)), 1).Interface()
+func (e *Event) NewReceiver() interface{} {
+	v := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, e.argsType), 1).Interface()
+	//e.Add(v)
+	return v
 }
 
 // NewEventReceiverSize does todo
-func NewEventReceiverSize(t interface{}, buffer int) interface{} {
-	return reflect.MakeChan(reflect.ChanOf(reflect.BothDir, reflect.TypeOf(t)), buffer).Interface()
+func (e *Event) NewReceiverSize(buffer int) interface{} {
+	v := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, e.argsType), buffer).Interface()
+	//e.Add(v)
+	return v
 }
 
 // Add does todo
 func (e *Event) Add(c interface{}) (err error) {
 	if !reflect.TypeOf(c).AssignableTo(e.chanType) {
-		err = errors.New("invalid chan type")
+		err = fmt.Errorf("invalid chan type: \"%s\" assigned to \"%s\"", reflect.TypeOf(c).String(), e.chanType.String())
 		return
 	}
 	e.listeners = append(e.listeners, c)
@@ -67,7 +69,7 @@ func (e *Event) Call(v interface{}) (err error) {
 		return
 	}
 	for _, c := range e.listeners {
-		reflect.ValueOf(c).Elem().Send(reflect.ValueOf(v))
+		reflect.ValueOf(c).Send(reflect.ValueOf(v))
 	}
 	return
 }
